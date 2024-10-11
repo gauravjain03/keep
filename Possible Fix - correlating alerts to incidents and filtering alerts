@@ -1,0 +1,170 @@
+To address the issue of correlating alerts to incidents and filtering alerts that are not assigned to incidents, I’ll provide a solution where we implement a feature to allow users to filter alerts that are not assigned to any incident. This will make it easier to manage alerts and incidents, and also train the AI.
+
+Steps to Implement the Solution
+
+1. Filter Alerts Not Assigned to Incidents: Add a feature that filters out alerts not yet assigned to incidents using CEL (Common Expression Language).
+2. Add a Pre-defined Preset: Similar to the “Dismissed” preset, add a preset that filters out unassigned alerts.
+3. Allow Linking to Filtered List from Other Pages: Make sure the new filtered list can be linked and accessed from other parts of the application.
+
+### Code Implementation
+
+#### 1. **Adding CEL Filter to Filter Unassigned Alerts**
+
+We will first add a CEL filter that specifically identifies alerts that are not assigned to any incident.
+
+**Example CEL Query:**
+```cel
+incident_id == null
+```
+
+In this query, `incident_id` refers to the field that links an alert to an incident. If `incident_id` is null, it means the alert is not linked to any incident.
+
+You can add this filter in the alert search functionality like so:
+
+```python
+def filter_unassigned_alerts(alerts):
+    """
+    Filters alerts that are not assigned to any incident.
+    
+    :param alerts: List of alert objects.
+    :return: Filtered list of alerts.
+    """
+    return [alert for alert in alerts if alert.get('incident_id') is None]
+```
+
+#### 2. **Add Pre-defined Preset for Unassigned Alerts**
+
+To create a pre-defined preset similar to the “Dismissed” preset, you can extend the existing UI logic to include a new preset for “Unassigned” alerts. Here’s how you can implement it:
+
+**Example in UI Configuration:**
+```json
+{
+    "presets": [
+        {
+            "name": "Unassigned",
+            "filter": "incident_id == null"
+        }
+    ]
+}
+```
+
+This preset filters out any alert that is not assigned to an incident.
+
+#### 3. **Allow Linking to Filtered List from Other Pages**
+
+Next, we need to ensure that this list of unassigned alerts can be linked from other parts of the application.
+
+- In the routing logic of your web application (e.g., Flask or FastAPI), add a new route to access this filtered list:
+
+```python
+@app.route('/alerts/unassigned', methods=['GET'])
+def get_unassigned_alerts():
+    alerts = fetch_alerts()  # Fetch all alerts from the database
+    unassigned_alerts = filter_unassigned_alerts(alerts)  # Apply the filter
+    return render_template('unassigned_alerts.html', alerts=unassigned_alerts)
+```
+
+- On the front end, you can create a button or link on the main page or incident pages that directs users to the filtered list:
+
+**Example in HTML:**
+```html
+<a href="/alerts/unassigned" class="btn btn-primary">View Unassigned Alerts</a>
+```
+
+This button will take users to the filtered list of alerts that are not yet assigned to any incidents.
+
+### Unit Testing the New Features
+
+It’s essential to create unit tests to ensure that the new filtering and preset functionalities work as expected.
+
+```python
+import unittest
+
+class TestAlertFiltering(unittest.TestCase):
+    
+    def test_filter_unassigned_alerts(self):
+        alerts = [
+            {'alert_id': 1, 'incident_id': None},
+            {'alert_id': 2, 'incident_id': 1001},
+            {'alert_id': 3, 'incident_id': None},
+        ]
+        unassigned_alerts = filter_unassigned_alerts(alerts)
+        self.assertEqual(len(unassigned_alerts), 2)
+        self.assertTrue(all(alert['incident_id'] is None for alert in unassigned_alerts))
+    
+    def test_preset_filter(self):
+        # Assuming this is the function that applies a preset.
+        preset_filter = "incident_id == null"
+        alerts = [
+            {'alert_id': 1, 'incident_id': None},
+            {'alert_id': 2, 'incident_id': 1001},
+        ]
+        unassigned_alerts = filter_unassigned_alerts(alerts)
+        self.assertEqual(len(unassigned_alerts), 1)
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+### 4. **Changes to Make in Your Files**
+
+#### **File: alerts/filter.py**
+```python
+def filter_unassigned_alerts(alerts):
+    """
+    Filters alerts that are not assigned to any incident.
+    
+    :param alerts: List of alert objects.
+    :return: Filtered list of alerts.
+    """
+    return [alert for alert in alerts if alert.get('incident_id') is None]
+```
+
+#### **File: templates/unassigned_alerts.html**
+```html
+<h2>Unassigned Alerts</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Alert ID</th>
+            <th>Description</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for alert in alerts %}
+        <tr>
+            <td>{{ alert.alert_id }}</td>
+            <td>{{ alert.description }}</td>
+            <td><a href="/incidents/link/{{ alert.alert_id }}" class="btn btn-primary">Link to Incident</a></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+```
+
+#### **New Route in Your Backend Code:**
+```python
+@app.route('/alerts/unassigned', methods=['GET'])
+def get_unassigned_alerts():
+    alerts = fetch_alerts()  # Fetch all alerts from the database
+    unassigned_alerts = filter_unassigned_alerts(alerts)  # Apply the filter
+    return render_template('unassigned_alerts.html', alerts=unassigned_alerts)
+```
+
+#### **Link from Other Pages:**
+You can link to this filtered list from other pages by adding a button or link like so:
+```html
+<a href="/alerts/unassigned" class="btn btn-primary">View Unassigned Alerts</a>
+```
+
+### 5. **Commit and Push Your Changes**
+
+Once you’ve made the changes and tested them, commit the changes to your local repository and push them to GitHub.
+
+```bash
+git add alerts/filter.py templates/unassigned_alerts.html
+git commit -m "Add filter for unassigned alerts and pre-defined preset"
+git push origin <branch-name>
+```
